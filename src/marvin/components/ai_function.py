@@ -112,27 +112,36 @@ class AIFunction(BaseModel, Generic[P, T]):
         **kwargs: P.kwargs,
     ) -> AbstractChatCompletion[T]:
         return self.model(**self.as_dict(*args, **kwargs))
-
+    
     def call(
         self,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> Any:
-        return getattr(
-            self.as_chat_completion(*args, **kwargs).create().to_model(),
-            self.response_model_field_name or "output",
-        )
+        model_instance = self.as_chat_completion(*args, **kwargs).create().to_model()
+        response_model_field_name = self.response_model_field_name or "output"
+
+        if not (output := getattr(model_instance, response_model_field_name, None)):
+            return model_instance
+
+        return output
 
     async def acall(
         self,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> Any:
-        return getattr(
-            (await self.as_chat_completion(*args, **kwargs).acreate()).to_model(),
-            self.response_model_field_name or "output",
-        )
+        model_instance = (
+            await self.as_chat_completion(*args, **kwargs).acreate()
+        ).to_model()
 
+        response_model_field_name = self.response_model_field_name or "output"
+
+        if not (output := getattr(model_instance, response_model_field_name, None)):
+            return model_instance
+
+        return output
+    
     def map(self, *map_args: list[Any], **map_kwargs: list[Any]):
         """
         Map the AI function over a sequence of arguments. Runs concurrently.
